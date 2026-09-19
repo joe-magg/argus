@@ -9,37 +9,56 @@ import {
   Minus,
   AlertTriangle,
   Rocket,
-  CreditCard,
   RefreshCw,
-  ExternalLink,
+  FileText,
+  CheckCircle2,
+  BrainCircuit,
 } from 'lucide-react'
 import type { StockAnalysis } from '@/lib/analysis'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type Sentiment = {
-  sentiment: 'bullish' | 'neutral' | 'bearish'
-  score: number
+// PLAN §5 — the AI report contract (schema lives in app/api/analysis/sentiment).
+type Report = {
+  verdict: 'strong_buy' | 'buy' | 'hold' | 'sell' | 'strong_sell'
+  conviction: number
   summary: string
-  valuationView: string
-  growthView: string
-  catalysts: string[]
+  thesis: { point: string; reasoning: string }[]
   risks: string[]
+  catalysts: string[]
+  keyMetrics: { label: string; value: string; source: 'live' | 'sec' }[]
+  grounding?: {
+    filing: string
+    figures: { figure: string; value: string }[]
+  }
 }
 
-const TONE = {
-  bullish: { icon: TrendingUp, className: 'text-gain', bg: 'bg-gain/15', label: 'Bullish' },
-  neutral: { icon: Minus, className: 'text-muted-foreground', bg: 'bg-muted', label: 'Neutral' },
-  bearish: { icon: TrendingDown, className: 'text-loss', bg: 'bg-loss/15', label: 'Bearish' },
+const VERDICT = {
+  strong_buy: { icon: TrendingUp, className: 'text-gain', bg: 'bg-gain/15', label: 'Strong Buy' },
+  buy: { icon: TrendingUp, className: 'text-gain', bg: 'bg-gain/15', label: 'Buy' },
+  hold: { icon: Minus, className: 'text-muted-foreground', bg: 'bg-muted', label: 'Hold' },
+  sell: { icon: TrendingDown, className: 'text-loss', bg: 'bg-loss/15', label: 'Sell' },
+  strong_sell: { icon: TrendingDown, className: 'text-loss', bg: 'bg-loss/15', label: 'Strong Sell' },
 }
 
-type OutlookError = { kind: 'billing' | 'generic'; message: string }
+// Staged status copy (PLAN §3): the LLM call takes a while (Ultra reasons
+// first), so the client walks through the pipeline stages while it runs.
+const STAGES = [
+  'Screening documents…',
+  'Pulling SEC filings…',
+  'Reasoning through valuation and growth…',
+  'Writing analysis…',
+]
+
+type OutlookError = { message: string }
 
 export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
-  const [data, setData] = useState<Sentiment | null>(null)
+  const [data, setData] = useState<Report | null>(null)
+  const [model, setModel] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<OutlookError | null>(null)
+  const [stage, setStage] = useState(0)
   const [attempt, setAttempt] = useState(0)
 
   const load = useCallback(
@@ -47,6 +66,7 @@ export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
       setLoading(true)
       setError(null)
       setData(null)
+      setStage(0)
 
       const payload = {
         symbol: analysis.symbol,
@@ -82,19 +102,15 @@ export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
         })
         const json = await res.json().catch(() => ({}))
         if (!res.ok) {
-          if (res.status === 402 || json.error === 'ai_gateway_billing') {
-            throw {
-              kind: 'billing' as const,
-              message: json.message ?? 'AI outlook is unavailable until an AI Gateway payment method is added.',
-            }
-          }
-          throw { kind: 'generic' as const, message: 'Could not generate the AI outlook right now.' }
+          throw new Error(json.message ?? 'Could not generate the AI analysis right now.')
         }
-        if (!signal.aborted) setData(json.sentiment)
+        if (!signal.aborted) {
+          setData(json.sentiment)
+          setModel(json.model ?? null)
+        }
       } catch (e: any) {
         if (signal.aborted || e?.name === 'AbortError') return
-        if (e?.kind) setError(e as OutlookError)
-        else setError({ kind: 'generic', message: 'Could not generate the AI outlook right now.' })
+        setError({ message: e?.message ?? 'Could not generate the AI analysis right now.' })
       } finally {
         if (!signal.aborted) setLoading(false)
       }
@@ -108,56 +124,45 @@ export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
     return () => controller.abort()
   }, [load, attempt])
 
-  const tone = data ? TONE[data.sentiment] : null
+  useEffect(() => {
+    if (!loading) return
+    const id = setInterval(() => setStage((s) => (s + 1) % STAGES.length), 2800)
+    return () => clearInterval(id)
+  }, [loading])
+
+  const tone = data ? VERDICT[data.verdict] : null
 
   return (
     <Card className="border-primary/30 bg-gradient-to-b from-primary/[0.04] to-transparent">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Sparkles className="size-4 text-primary" />
-          AI Outlook &amp; Sentiment
+          Nemotron Analysis
+          {model && (
+            <span className="ml-auto font-mono text-xs font-normal text-muted-foreground">
+              {model}
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {loading && (
           <div className="flex items-center gap-3 py-6 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
-            Synthesizing valuation, growth, and news sentiment…
+            {STAGES[stage]}
           </div>
         )}
 
         {error && !loading && (
           <div className="rounded-lg border border-border bg-card/50 p-4">
             <div className="flex items-start gap-3">
-              <span
-                className={cn(
-                  'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md',
-                  error.kind === 'billing' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
-                )}
-              >
-                {error.kind === 'billing' ? (
-                  <CreditCard className="size-4" />
-                ) : (
-                  <AlertTriangle className="size-4" />
-                )}
+              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                <AlertTriangle className="size-4" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">
-                  {error.kind === 'billing' ? 'AI outlook needs AI Gateway credits' : 'AI outlook unavailable'}
-                </p>
+                <p className="text-sm font-medium">AI analysis unavailable</p>
                 <p className="mt-1 text-sm text-muted-foreground">{error.message}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {error.kind === 'billing' && (
-                    <a
-                      href="https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={buttonVariants({ variant: 'secondary', size: 'sm' })}
-                    >
-                      Add payment method
-                      <ExternalLink className="size-3.5" />
-                    </a>
-                  )}
+                <div className="mt-3">
                   <Button size="sm" variant="outline" onClick={() => setAttempt((n) => n + 1)}>
                     <RefreshCw className="size-3.5" />
                     Retry
@@ -173,6 +178,7 @@ export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
 
         {data && tone && (
           <div className="space-y-5">
+            {/* Verdict + conviction */}
             <div className="flex flex-wrap items-center gap-4">
               <span
                 className={cn(
@@ -189,33 +195,92 @@ export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
                   <div
                     className={cn(
                       'h-full rounded-full',
-                      data.sentiment === 'bullish' && 'bg-gain',
-                      data.sentiment === 'neutral' && 'bg-muted-foreground',
-                      data.sentiment === 'bearish' && 'bg-loss',
+                      data.verdict === 'strong_buy' || data.verdict === 'buy' ? 'bg-gain' : '',
+                      data.verdict === 'hold' ? 'bg-muted-foreground' : '',
+                      data.verdict === 'sell' || data.verdict === 'strong_sell' ? 'bg-loss' : '',
                     )}
-                    style={{ width: `${data.score}%` }}
+                    style={{ width: `${data.conviction}%` }}
                   />
                 </div>
-                <span className="tabular font-mono text-sm font-semibold">{data.score}/100</span>
+                <span className="tabular font-mono text-sm font-semibold">
+                  {data.conviction}/100 conviction
+                </span>
               </div>
             </div>
 
             <p className="text-sm leading-relaxed">{data.summary}</p>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-border bg-card/50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Valuation
-                </p>
-                <p className="mt-1 text-sm">{data.valuationView}</p>
-              </div>
-              <div className="rounded-lg border border-border bg-card/50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Growth
-                </p>
-                <p className="mt-1 text-sm">{data.growthView}</p>
-              </div>
+            {/* Thesis — the "why" */}
+            <div className="rounded-lg border border-border bg-card/50 p-4">
+              <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <BrainCircuit className="size-3.5" />
+                Thesis — why
+              </p>
+              <ul className="space-y-3">
+                {data.thesis.map((t, i) => (
+                  <li key={i} className="flex gap-2.5">
+                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[11px] font-semibold text-primary">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{t.point}</p>
+                      <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
+                        {t.reasoning}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
+
+            {/* Key metrics with sources */}
+            {data.keyMetrics.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {data.keyMetrics.map((m, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card/50 px-3 py-2"
+                  >
+                    <span className="min-w-0 truncate text-sm text-muted-foreground">
+                      {m.label}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="tabular font-mono text-sm font-semibold">{m.value}</span>
+                      <span
+                        className={cn(
+                          'rounded px-1 py-0.5 font-mono text-[10px] font-semibold uppercase',
+                          m.source === 'sec'
+                            ? 'bg-primary/15 text-primary'
+                            : 'bg-muted text-muted-foreground',
+                        )}
+                      >
+                        {m.source}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {data.grounding && (
+              <div className="rounded-lg border border-border bg-card/50 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <FileText className="size-3.5" />
+                  Grounded in SEC filings
+                </p>
+                <p className="mt-1 text-sm">{data.grounding.filing}</p>
+                <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                  {data.grounding.figures.map((f, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                      <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                      <span>
+                        <span className="font-medium text-foreground">{f.figure}:</span> {f.value}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -247,7 +312,8 @@ export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
             </div>
 
             <p className="border-t border-border/60 pt-3 text-xs text-muted-foreground">
-              AI-generated from Yahoo Finance data and recent headlines. Not investment advice.
+              AI-generated from Yahoo Finance data, recent headlines, and SEC filings via EDGAR.
+              Not investment advice.
             </p>
           </div>
         )}
