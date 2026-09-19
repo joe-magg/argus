@@ -1,14 +1,11 @@
-import { generateText } from 'ai'
-import { ARGUS_PERSONA, NIM_CHAT_OPTIONS, chatModel } from '@/lib/llm'
 import { getNews, type NewsItem } from '@/lib/yahoo'
 
 export const runtime = 'nodejs'
-export const maxDuration = 120
 
 const TOPICS = ['stock market', 'Federal Reserve economy', 'oil energy geopolitics']
 
-// Headline aggregation + Nemotron market-impact analysis (imported from the
-// yassin-frontend iteration; re-based on the unified lib).
+// Pure headline aggregation (per plan: news is RSS-style, no LLM spend).
+// getNews caches each topic for 15 minutes, so repeated loads cost nothing.
 export async function POST(req: Request) {
   try {
     const { topic } = (await req.json().catch(() => ({}))) as { topic?: string }
@@ -25,32 +22,8 @@ export async function POST(req: Request) {
         }
       }
     }
-    const top = news.slice(0, 12)
 
-    const headlinesForModel = top.map((n) => ({
-      title: n.title,
-      publisher: n.publisher,
-      tickers: n.tickers,
-    }))
-
-    const { text } = await generateText({
-      model: chatModel(),
-      providerOptions: NIM_CHAT_OPTIONS,
-      maxRetries: 0,
-      system:
-        `${ARGUS_PERSONA}\n\n` +
-        'You receive real financial headlines. Analyze their market impact in plain text. Use these prefixed lines:\n' +
-        "THEME: one line naming the dominant theme across today's headlines.\n" +
-        "IMPACT: 4-5 bullet lines ('- '). Each bullet takes one concrete event (politics, war, disaster, rates, or an executive decision) from the headlines and states which market or sector it most affects and the likely direction.\n" +
-        'POSITIONING: one line on what a cautious investor might watch given this news.',
-      prompt:
-        'Analyze the market impact of these real headlines' +
-        (topic ? ` (user focus: ${topic})` : '') +
-        ':\n\n' +
-        JSON.stringify(headlinesForModel, null, 2),
-    })
-
-    return Response.json({ news: top, analysis: text })
+    return Response.json({ news: news.slice(0, 12) })
   } catch (err) {
     return Response.json(
       { error: err instanceof Error ? err.message : 'Could not load news.' },

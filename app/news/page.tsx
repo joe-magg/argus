@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import type { NewsItem } from "@/lib/yahoo"
 
-type Result = { news: NewsItem[]; analysis: string }
+type Result = { news: NewsItem[]; analysis?: string }
 
 function timeAgo(iso: string | null): string {
   if (!iso) return ""
@@ -92,14 +92,16 @@ export default function NewsPage() {
 
       {result && (
         <div className="grid gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-3">
-            <div className="rounded-2xl border border-primary/30 bg-card p-6">
-              <h3 className="mb-4 text-lg font-semibold text-foreground">Market impact</h3>
-              <AnalysisText text={result.analysis} />
+          {result.analysis && (
+            <div className="lg:col-span-3">
+              <div className="rounded-2xl border border-primary/30 bg-card p-6">
+                <h3 className="mb-4 text-lg font-semibold text-foreground">Market impact</h3>
+                <AnalysisText text={result.analysis} />
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="flex flex-col gap-3 lg:col-span-2">
+          <div className={`flex flex-col gap-3 ${result.analysis ? 'lg:col-span-2' : 'lg:col-span-full'}`}>
             <h3 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Latest headlines</h3>
             <ul className="flex flex-col gap-2">
               {result.news.map((n, i) => (
