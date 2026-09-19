@@ -11,6 +11,7 @@ import { MetricList, type MetricItem } from '@/components/metric'
 import { RecommendationTrend } from '@/components/analysis/rec-trend'
 import { NewsList } from '@/components/analysis/news-list'
 import { AiOutlook } from '@/components/analysis/ai-outlook'
+import { AiSearch } from '@/components/ai-search'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -209,6 +210,19 @@ function Report({ analysis: a }: { analysis: StockAnalysis }) {
 
       {/* AI Outlook */}
       <AiOutlook analysis={a} />
+
+      {/* Ask Argus — section-aware chat, scoped to this company */}
+      <AiSearch
+        section="Stock analysis"
+        context={[
+          `${a.name} (${a.symbol}) — ${a.sector ?? 'n/a'}, ${a.industry ?? 'n/a'}`,
+          `Price ${formatPrice(a.price.current, a.currency)} (${formatPercent(a.price.changePercent)} today); 52-week range ${formatNumber(a.price.fiftyTwoWeekLow)}–${formatNumber(a.price.fiftyTwoWeekHigh)}`,
+          `Market cap ${formatMarketCap(a.valuation.marketCap)}; trailing P/E ${formatNumber(a.valuation.trailingPE)}, forward P/E ${formatNumber(a.valuation.forwardPE)}`,
+          `Revenue growth ${formatRatioPercent(a.growth.revenueGrowth)} YoY; net margin ${formatRatioPercent(a.growth.profitMargin)}; ROE ${formatRatioPercent(a.growth.returnOnEquity)}`,
+          `Analyst consensus ${a.outlook.recommendationKey}, mean target ${formatPrice(a.outlook.targetMean, a.currency)}, implied upside ${formatPercent(a.outlook.upsidePercent)}`,
+        ].join('\n')}
+        placeholder="Ask Argus about this company…"
+      />
 
       {/* Analyst targets */}
       <PriceTargets analysis={a} />

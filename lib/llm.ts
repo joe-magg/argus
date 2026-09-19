@@ -36,6 +36,12 @@ export const NIM_CHAT_OPTIONS = {
   },
 } as const
 
+// Streaming chat model instance for the Ask-Argus box (/api/chat). Uses the
+// fast nano model with thinking disabled; analysis keeps the big Ultra model.
+export function chatModel() {
+  return nvidia(LLM_CHAT_MODEL)
+}
+
 // Total-output ceiling. NOTE: on NIM's vLLM V2 runner, thinking may count
 // inside this cap (reasoning_budget itself is rejected) — so lowering it
 // bounds total latency. Tunable via NVIDIA_MAX_OUTPUT_TOKENS.
