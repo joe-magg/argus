@@ -64,6 +64,11 @@ const NIM_THINKING = {
   },
 }
 
+// Quota discipline: the free tier counts per request, and the AI SDK would
+// otherwise retry retryable errors (default maxRetries: 2) — re-firing
+// exhausted requests. We retry deliberately, once, in generateStructured.
+const NO_SDK_RETRIES = { maxRetries: 0 } as const
+
 export type StructuredCall<T> = {
   system: string
   prompt: string
@@ -100,9 +105,43 @@ export async function generateStructured<T>({
   temperature = 0.3,
   maxOutputTokens = MAX_OUTPUT_TOKENS,
 }: StructuredCall<T>): Promise<T> {
+  // Plain-text attempt with optional validation feedback (the repair path).
+  const attempt = async (retryHint?: string): Promise<T> => {
+    const { text } = await generateText({
+      model: nvidia(LLM_MODEL),
+      system,
+      prompt: retryHint ? `${prompt}\n\n${retryHint}` : prompt,
+      temperature,
+      maxOutputTokens,
+      providerOptions: NIM_THINKING,
+      ...NO_SDK_RETRIES,
+    })
+
+    const json = extractJson(text)
+    if (!json) throw new Error('LLM_JSON: response contained no JSON object')
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(json)
+    } catch {
+      throw new Error('LLM_JSON: response JSON was malformed')
+    }
+
+    const result = schema.safeParse(parsed)
+    if (!result.success) {
+      const detail = result.error.issues
+        .map((i) => `${i.path.join('.') || 'root'}: ${i.message}`)
+        .slice(0, 5)
+        .join('; ')
+      throw new Error(`LLM_JSON: output failed schema validation (${detail})`)
+    }
+    return result.data
+  }
+
   // Attempt 1: strict JSON via the API (`response_format: json_object`),
-  // parsed + zod-validated by the SDK.
-  const callJsonMode = async (): Promise<T> => {
+  // parsed + zod-validated by the SDK. At most ONE repair attempt follows —
+  // free-tier quota counts per request, so three is too many.
+  try {
     const result = await generateText({
       model: nvidia(LLM_MODEL),
       system,
@@ -111,68 +150,28 @@ export async function generateStructured<T>({
       maxOutputTokens,
       providerOptions: NIM_THINKING,
       output: Output.object({ schema }),
+      ...NO_SDK_RETRIES,
     })
     if (result.output == null) {
       throw new Error('LLM_JSON: model returned no object')
     }
     return result.output as T
-  }
-
-  // Attempt 2/3: plain-text response, extract + repair the JSON ourselves,
-  // one retry with a strictness hint.
-  const callPlainWithRetry = async (): Promise<T> => {
-    const attempt = async (retryHint?: string): Promise<T> => {
-      const { text } = await generateText({
-        model: nvidia(LLM_MODEL),
-        system,
-        prompt: retryHint ? `${prompt}\n\n${retryHint}` : prompt,
-        temperature,
-        maxOutputTokens,
-        providerOptions: NIM_THINKING,
-      })
-
-      const json = extractJson(text)
-      if (!json) throw new Error('LLM_JSON: response contained no JSON object')
-
-      let parsed: unknown
-      try {
-        parsed = JSON.parse(json)
-      } catch {
-        throw new Error('LLM_JSON: response JSON was malformed')
-      }
-
-      const result = schema.safeParse(parsed)
-      if (!result.success) {
-        const detail = result.error.issues
-          .map((i) => `${i.path.join('.') || 'root'}: ${i.message}`)
-          .slice(0, 5)
-          .join('; ')
-        throw new Error(`LLM_JSON: output failed schema validation (${detail})`)
-      }
-      return result.data
-    }
-
-    try {
-      return await attempt()
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('LLM_JSON:')) {
-        const detail = error.message.replace('LLM_JSON: ', '').slice(0, 240)
-        return attempt(
-          `Your previous response failed validation: ${detail}. Return ONLY a single minified JSON object matching the schema exactly — fix exactly the listed fields; keep plain-string fields as plain strings, never objects. No markdown, no code fences, no commentary.`,
-        )
-      }
+  } catch (error) {
+    if (
+      !isFormatRejected(error) &&
+      !(error instanceof NoObjectGeneratedError) &&
+      !(error instanceof Error && error.message.startsWith('LLM_JSON:'))
+    ) {
       throw error
     }
-  }
 
-  try {
-    return await callJsonMode()
-  } catch (error) {
-    // The model either doesn't support JSON mode or produced sloppy JSON —
-    // either way, fall back to prompt-enforced JSON with our own extraction.
-    if (isFormatRejected(error)) return callPlainWithRetry()
-    if (error instanceof NoObjectGeneratedError) return callPlainWithRetry()
-    if (error instanceof Error && error.message.startsWith('LLM_JSON:')) return callPlainWithRetry()
-    throw error
+    const detail =
+      error instanceof Error && error.message.startsWith('LLM_JSON:')
+        ? error.message.replace('LLM_JSON: ', '').slice(0, 240)
+        : ''
+    const hint = detail
+      ? `Your previous response failed validation: ${detail}. Return ONLY a single minified JSON object matching the schema exactly — fix exactly the listed fields; keep plain-string fields as plain strings, never objects. No markdown, no code fences.`
+      : 'Return ONLY a single minified JSON object matching the schema exactly. No markdown, no code fences, no commentary.'
+    return attempt(hint)
   }
 }

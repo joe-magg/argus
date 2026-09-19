@@ -36,6 +36,7 @@ export async function POST(req: Request) {
     const { text } = await generateText({
       model: chatModel(),
       providerOptions: NIM_CHAT_OPTIONS,
+      maxRetries: 0,
       system:
         `${ARGUS_PERSONA}\n\n` +
         'You receive real financial headlines. Analyze their market impact in plain text. Use these prefixed lines:\n' +

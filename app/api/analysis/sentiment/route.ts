@@ -129,13 +129,15 @@ export async function POST(request: Request) {
     const message = (error as Error).message ?? ''
     const statusCode = (error as any)?.statusCode ?? '?'
     console.log(`[argus] sentiment error (${statusCode}) model=${LLM_MODEL}: ${message}`)
+    const exhausted = /ResourceExhausted|request limit|rate.?limit|quota/i.test(message)
     return NextResponse.json(
       {
-        error: 'sentiment_failed',
-        message:
-          'AI analysis failed. Check the server log — NVIDIA API key, quota, or model name.',
+        error: exhausted ? 'llm_exhausted' : 'sentiment_failed',
+        message: exhausted
+          ? 'NVIDIA free-tier request budget is briefly exhausted — wait a few minutes and retry. Repeat visits to the same ticker are served from cache.'
+          : 'AI analysis failed. Check the server log — NVIDIA API key, quota, or model name.',
       },
-      { status: 500 },
+      { status: exhausted ? 429 : 500 },
     )
   }
 }

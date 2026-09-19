@@ -14,6 +14,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: chatModel(),
     providerOptions: NIM_CHAT_OPTIONS,
+    maxRetries: 0,
     system:
       `${ARGUS_PERSONA}\n\n` +
       `You are answering questions inside the "${section ?? 'general'}" section of Argus. ` +
