@@ -2,13 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Eye, GitCompareArrows, LineChart, Building2 } from 'lucide-react'
+import { Eye, GitCompareArrows, LineChart, Building2, Gem, Newspaper } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NAV = [
   { href: '/analysis', label: 'Analysis', icon: LineChart },
   { href: '/compare', label: 'Compare', icon: GitCompareArrows },
   { href: '/industry', label: 'Industry', icon: Building2 },
+  { href: '/materials', label: 'Materials', icon: Gem },
+  { href: '/news', label: 'News', icon: Newspaper },
 ]
 
 export function SiteHeader() {
