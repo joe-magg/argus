@@ -11,6 +11,7 @@ import { MetricList, type MetricItem } from '@/components/metric'
 import { RecommendationTrend } from '@/components/analysis/rec-trend'
 import { NewsList } from '@/components/analysis/news-list'
 import { AiOutlook } from '@/components/analysis/ai-outlook'
+import { PriceChartCard } from '@/components/analysis/price-chart-card'
 import { AiSearch } from '@/components/ai-search'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -207,6 +208,9 @@ function Report({ analysis: a }: { analysis: StockAnalysis }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Price history */}
+      <PriceChartCard symbol={a.symbol} />
 
       {/* AI Outlook */}
       <AiOutlook analysis={a} />
