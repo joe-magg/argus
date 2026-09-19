@@ -18,6 +18,24 @@ export function hasLlmKey(): boolean {
   return Boolean(process.env.NVIDIA_API_KEY)
 }
 
+// Shared analyst persona (imported from the yassin-frontend iteration).
+export const ARGUS_PERSONA =
+  'You are Argus, the analytical engine of a finance intelligence platform. ' +
+  'You are precise, data-driven, and speak with the calm confidence of a senior markets analyst. ' +
+  'You never invent specific live prices when data is provided to you — reason strictly from the supplied figures. ' +
+  'You always remind users, briefly and only once, that analysis is informational and not financial advice.'
+
+// Chat (AiSearch) model: a small fast reasoning model with thinking disabled
+// so answers stream quickly. Override via NVIDIA_CHAT_MODEL.
+export const LLM_CHAT_MODEL =
+  process.env.NVIDIA_CHAT_MODEL ?? 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning'
+
+export const NIM_CHAT_OPTIONS = {
+  nvidia: {
+    chat_template_kwargs: { enable_thinking: false },
+  },
+} as const
+
 // Total-output ceiling. NOTE: on NIM's vLLM V2 runner, thinking may count
 // inside this cap (reasoning_budget itself is rejected) — so lowering it
 // bounds total latency. Tunable via NVIDIA_MAX_OUTPUT_TOKENS.
