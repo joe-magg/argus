@@ -48,7 +48,7 @@ const chatProvider =
         // Same provider name on purpose: NIM_CHAT_OPTIONS keys off it.
         name: 'nvidia',
         baseURL: LLM_CHAT_BASE_URL,
-        apiKey: process.env.NVIDIA_API_KEY ?? '',
+        apiKey: process.env.NVIDIA_CHAT_API_KEY ?? process.env.NVIDIA_API_KEY ?? '',
       })
 
 // Provider dialect: NIM takes chat_template_kwargs; OpenRouter takes
@@ -64,7 +64,7 @@ const NVIDIA_ROUTE_PIN = { only: ['nvidia'], allow_fallbacks: false } as const
 // run different environments — log the effective values once so drift
 // (wrong slug, wrong dialect) self-diagnoses in the server log.
 console.log(
-  `[argus] LLM analysis: ${LLM_BASE_URL} / ${LLM_MODEL} | chat: ${LLM_CHAT_BASE_URL} / ${LLM_CHAT_MODEL} | thinking: ${THINKING_ENABLED}`,
+  `[argus] LLM analysis: ${LLM_BASE_URL} / ${LLM_MODEL} | chat: ${LLM_CHAT_BASE_URL} / ${LLM_CHAT_MODEL} (key: ${process.env.NVIDIA_CHAT_API_KEY ? 'set' : process.env.NVIDIA_API_KEY ? 'inherited' : 'MISSING'}) | thinking: ${THINKING_ENABLED}`,
 )
 
 export const NIM_CHAT_OPTIONS = IS_CHAT_OPENROUTER
