@@ -43,6 +43,13 @@ const THINKING_ENABLED = process.env.NVIDIA_THINKING !== 'false'
 
 const NVIDIA_ROUTE_PIN = { only: ['nvidia'], allow_fallbacks: false } as const
 
+// Startup visibility: the provider/model config is env-driven and teammates
+// run different environments — log the effective values once so drift
+// (wrong slug, wrong dialect) self-diagnoses in the server log.
+console.log(
+  `[argus] LLM provider: ${LLM_BASE_URL} | analysis: ${LLM_MODEL} | chat: ${LLM_CHAT_MODEL} | thinking: ${THINKING_ENABLED}`,
+)
+
 export const NIM_CHAT_OPTIONS = IS_OPENROUTER
   ? {
       nvidia: {
