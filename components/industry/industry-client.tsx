@@ -41,11 +41,6 @@ const SCREENS: Screen[] = [
     label: 'Aggressive Small Caps',
     description: 'Small caps with strong momentum',
   },
-  {
-    id: 'most_shorted_stocks',
-    label: 'Most Shorted',
-    description: 'Highest short interest',
-  },
 ]
 
 type SortKey = 'marketCap' | 'price' | 'changePercent'
