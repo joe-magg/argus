@@ -34,6 +34,23 @@ export const ARGUS_INSTRUCTIONS =
 export const LLM_CHAT_MODEL =
   process.env.NVIDIA_CHAT_MODEL ?? 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning'
 
+// Chat can run on a different provider than analysis: NIM nano proved fast
+// and clean for chat (its chat_template_kwargs thinking-off is honored),
+// while OpenRouter :free ignored reasoning.enabled and leaked traces.
+export const LLM_CHAT_BASE_URL = process.env.NVIDIA_CHAT_BASE_URL ?? LLM_BASE_URL
+
+const IS_CHAT_OPENROUTER = LLM_CHAT_BASE_URL.includes('openrouter')
+
+const chatProvider =
+  LLM_CHAT_BASE_URL === LLM_BASE_URL
+    ? nvidia
+    : createOpenAICompatible({
+        // Same provider name on purpose: NIM_CHAT_OPTIONS keys off it.
+        name: 'nvidia',
+        baseURL: LLM_CHAT_BASE_URL,
+        apiKey: process.env.NVIDIA_API_KEY ?? '',
+      })
+
 // Provider dialect: NIM takes chat_template_kwargs; OpenRouter takes
 // `reasoning` and a provider pin to NVIDIA (keeps the Nemotron-on-NVIDIA
 // story honest for the track). Both are OpenAI-compatible — the swap is
@@ -47,10 +64,10 @@ const NVIDIA_ROUTE_PIN = { only: ['nvidia'], allow_fallbacks: false } as const
 // run different environments — log the effective values once so drift
 // (wrong slug, wrong dialect) self-diagnoses in the server log.
 console.log(
-  `[argus] LLM provider: ${LLM_BASE_URL} | analysis: ${LLM_MODEL} | chat: ${LLM_CHAT_MODEL} | thinking: ${THINKING_ENABLED}`,
+  `[argus] LLM analysis: ${LLM_BASE_URL} / ${LLM_MODEL} | chat: ${LLM_CHAT_BASE_URL} / ${LLM_CHAT_MODEL} | thinking: ${THINKING_ENABLED}`,
 )
 
-export const NIM_CHAT_OPTIONS = IS_OPENROUTER
+export const NIM_CHAT_OPTIONS = IS_CHAT_OPENROUTER
   ? {
       nvidia: {
         reasoning: { enabled: false },
@@ -66,7 +83,7 @@ export const NIM_CHAT_OPTIONS = IS_OPENROUTER
 // Streaming chat model instance for the Ask-Argus box (/api/chat). Uses the
 // fast nano model with thinking disabled; analysis keeps the big Ultra model.
 export function chatModel() {
-  return nvidia(LLM_CHAT_MODEL)
+  return chatProvider(LLM_CHAT_MODEL)
 }
 
 // Total-output ceiling. NOTE: on NIM's vLLM V2 runner, thinking may count
