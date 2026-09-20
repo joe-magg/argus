@@ -18,12 +18,16 @@ export function hasLlmKey(): boolean {
   return Boolean(process.env.NVIDIA_API_KEY)
 }
 
-// Shared analyst persona (imported from the yassin-frontend iteration).
-export const ARGUS_PERSONA =
-  'You are Argus, the analytical engine of a finance intelligence platform. ' +
-  'You are precise, data-driven, and speak with the calm confidence of a senior markets analyst. ' +
-  'You never invent specific live prices when data is provided to you — reason strictly from the supplied figures. ' +
-  'You always remind users, briefly and only once, that analysis is informational and not financial advice.'
+// Shared output rules for all Argus-generated text (no role-play; the model
+// obeys instructions, and the output contract — schema, citations, JSON
+// mode — is what we actually verify).
+export const ARGUS_INSTRUCTIONS =
+  'Rules for all Argus-generated text:\n' +
+  '- Use ONLY the data provided. Never invent prices, figures, or events.\n' +
+  '- Prefer SEC filing figures over market estimates when they conflict; label sources SEC or live.\n' +
+  '- Lead with substance: what the company or asset is, why it matters, and the key tension in the numbers. Do not recite metrics without interpretation.\n' +
+  '- Be specific and concise. No marketing tone, no filler adjectives.\n' +
+  '- Do not give personalized investment advice. Append exactly one closing line: "This analysis is informational and not investment advice."'
 
 // Chat (AiSearch) model: a small fast reasoning model with thinking disabled
 // so answers stream quickly. Override via NVIDIA_CHAT_MODEL.

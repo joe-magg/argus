@@ -1,5 +1,5 @@
 import { streamText, convertToModelMessages, type UIMessage } from 'ai'
-import { ARGUS_PERSONA, NIM_CHAT_OPTIONS, chatModel } from '@/lib/llm'
+import { ARGUS_INSTRUCTIONS, NIM_CHAT_OPTIONS, chatModel } from '@/lib/llm'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     providerOptions: NIM_CHAT_OPTIONS,
     maxRetries: 0,
     system:
-      `${ARGUS_PERSONA}\n\n` +
+      `${ARGUS_INSTRUCTIONS}\n\n` +
       `You are answering questions inside the "${section ?? 'general'}" section of Argus. ` +
       (context ? `Relevant context for this section:\n${context}\n\n` : '') +
       'Keep answers focused on markets, investing, economics, commodities, and financial news. ' +

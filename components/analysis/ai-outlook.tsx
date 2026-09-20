@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils'
 type Report = {
   verdict: 'strong_buy' | 'buy' | 'hold' | 'sell' | 'strong_sell'
   conviction: number
-  summary: string
+  story: string
   thesis: { point: string; reasoning: string }[]
   risks: string[]
   catalysts: string[]
@@ -208,7 +208,10 @@ export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
               </div>
             </div>
 
-            <p className="text-sm leading-relaxed">{data.summary}</p>
+            {/* Story — the value proposition, plain language first */}
+            <div className="border-l-2 border-primary/50 pl-3">
+              <p className="text-[15px] leading-relaxed text-foreground">{data.story}</p>
+            </div>
 
             {/* Thesis — the "why" */}
             <div className="rounded-lg border border-border bg-card/50 p-4">

@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import { ARGUS_PERSONA, NIM_CHAT_OPTIONS, chatModel, withQuotaRetry } from '@/lib/llm'
+import { ARGUS_INSTRUCTIONS, NIM_CHAT_OPTIONS, chatModel, withQuotaRetry } from '@/lib/llm'
 import { getQuote, getChart, type RangeKey } from '@/lib/yahoo'
 
 export const runtime = 'nodejs'
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
           providerOptions: NIM_CHAT_OPTIONS,
           maxRetries: 0,
           system:
-            `${ARGUS_PERSONA}\n\n` +
+            `${ARGUS_INSTRUCTIONS}\n\n` +
             'Write a precious materials and commodities briefing in plain text. Use these prefixed lines:\n' +
             "GOLD: one line on gold's current situation and drivers.\n" +
             'SILVER: one line on silver.\n' +

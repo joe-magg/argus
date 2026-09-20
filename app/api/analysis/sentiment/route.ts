@@ -14,9 +14,9 @@ const SENTIMENT_TTL = 6 * 60 * 60_000
 
 // PLAN §5 — the full analysis report contract (shared with the AI card).
 const schema = z.object({
+  story: z.string().min(10),
   verdict: z.enum(['strong_buy', 'buy', 'hold', 'sell', 'strong_sell']),
   conviction: z.number().min(0).max(100),
-  summary: z.string().min(3),
   thesis: z
     .array(z.object({ point: z.string(), reasoning: z.string() }))
     .min(2)
@@ -35,24 +35,29 @@ const schema = z.object({
     .optional(),
 })
 
-const SYSTEM = `You are a senior equity research analyst at Argus, a financial intelligence platform.
-Instructions:
-- Use ONLY the data in the prompt. Never invent figures.
-- The SEC filing section is ground truth straight from the company's own reports: prefer its reported numbers over market estimates when they conflict.
-- Think carefully before writing: weigh the numbers, the trajectory, and the risks. Be balanced; flag risk; do not give personalized investment advice.
-- Be concise: plain strings stay plain strings; do not invent fields or nest extras beyond the spec. Every surplus token is latency for the end user.
-- Every thesis point must include concrete reasoning that cites specific figures from the data (prefer SEC-reported figures).
-- keyMetrics: pick the 3-6 most decision-relevant metrics; set "source" to "sec" when the figure comes from SEC filing data, otherwise "live".
-- If the SEC section reports that filing data is unavailable, omit the "grounding" field entirely.
-- Respond with ONLY a single minified JSON object with EXACTLY these fields:
+const SYSTEM = `Write a stock analysis for Argus, a finance dashboard. Read the data below and produce the analysis JSON.
+
+Rules:
+1. Value proposition first. In "story", explain in 2-3 plain sentences what this company IS and why it matters: the business model in one breath, what is working, and the tension in the numbers. Do NOT start with a metrics list — figures belong inside explanations.
+2. Cite figures. Every claim in "story" and "thesis" references specific numbers from the data, preferring SEC-reported figures where available.
+3. Verdict. strong_buy / buy / hold / sell / strong_sell, with "conviction" 0-100. Be balanced; the verdict must be justified by the story and thesis, not by vibes.
+4. "thesis": exactly 3 objects { point, reasoning } — reasoning explains WHY with cited numbers.
+5. "risks": 2-4 SHORT plain strings, e.g. ["Valuation compression risk at 35x forward earnings"]. "catalysts": 2-3 SHORT plain strings, e.g. ["iPhone upgrade cycle"]. Never objects.
+6. "keyMetrics": 3-4 objects { label, value, source } — source is "sec" (from SEC filing data) or "live" (market data). Pick the figures that actually drive the story, not a dump.
+7. "grounding": optional { filing, figures[] } — ONLY when SEC filing data is present; cite 2-4 specific reported figures.
+8. Interpret, don't recite. Any metric you mention must support a conclusion. A metrics dump is a failure.
+9. If the SEC section reports filing data unavailable, omit "grounding" and rely only on live data.
+10. Be concise. Every surplus token is latency for the end user.
+
+Respond with ONLY a single minified JSON object with EXACTLY these fields:
+  - "story": string, 2-3 sentences — what the company is and why it matters, plain language, citing 1-3 specific numbers
   - "verdict": one of "strong_buy" | "buy" | "hold" | "sell" | "strong_sell"
   - "conviction": a number from 0 (no conviction) to 100 (extremely confident)
-  - "summary": string, 2-3 sentences synthesizing the overall read with specific numbers
-  - "thesis": array of exactly 3 objects, each { "point": string, "reasoning": string } — reasoning explains WHY with cited numbers
-  - "risks": array of 2-4 SHORT plain strings, e.g. ["Valuation compression risk at 35x forward earnings", "China demand uncertainty"] — never objects, never two-part items
-  - "catalysts": array of 2-3 SHORT plain strings, e.g. ["iPhone upgrade cycle", "Services margin mix"] — never objects
+  - "thesis": array of exactly 3 objects, each { "point": string, "reasoning": string }
+  - "risks": array of 2-4 SHORT plain strings
+  - "catalysts": array of 2-3 SHORT plain strings
   - "keyMetrics": array of 3-4 objects, each { "label": string, "value": string, "source": "live" | "sec" }
-  - "grounding": OPTIONAL object { "filing": string, "figures": [ { "figure": string, "value": string } ] } — include ONLY when SEC filing data was provided; cite 2-4 specific reported figures
+  - "grounding": OPTIONAL object { "filing": string, "figures": [ { "figure": string, "value": string } ] }
 No markdown, no commentary, no code fences, nothing before or after the JSON.`
 
 function fmtUsd(v: number | null): string {
