@@ -7,6 +7,7 @@ import type { StockAnalysis } from '@/lib/analysis'
 import { fetcher } from '@/lib/fetcher'
 import { TickerSearch } from '@/components/ticker-search'
 import { ChangeBadge } from '@/components/change-badge'
+import { CompareVerdict } from '@/components/compare/compare-verdict'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -137,7 +138,14 @@ export function CompareClient() {
           </Card>
         )}
 
-        {a && b && data && <ComparisonTable left={data.left} right={data.right} />}
+        {a && b && data && (
+          <>
+            <ComparisonTable left={data.left} right={data.right} />
+            <div className="mt-8">
+              <CompareVerdict left={data.left} right={data.right} />
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
