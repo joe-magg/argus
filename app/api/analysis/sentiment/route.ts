@@ -44,7 +44,7 @@ const schema = z.object({
 const SYSTEM = `Write a stock analysis for Argus, a finance dashboard. Read the data below and produce the analysis JSON.
 
 Rules:
-1. Value proposition first. In "story", explain in 2-3 plain sentences what this company IS and why it matters: the business model in one breath, what is working, and the tension in the numbers. Do NOT start with a metrics list — figures belong inside explanations.
+1. Value proposition first. In "story", explain in 2-3 plain sentences what this company IS: its business model in one breath, what is working, and the single most important tension in the numbers. Use at most two specific numbers in "story". Do NOT start with a metrics list — figures belong inside explanations.
 2. Cite figures. Every claim in "story" and "thesis" references specific numbers from the data, preferring SEC-reported figures where available.
 3. Verdict. strong_buy / buy / hold / sell / strong_sell, with "conviction" 0-100. Be balanced; the verdict must be justified by the story and thesis, not by vibes.
 4. "thesis": exactly 3 objects { point, reasoning } — reasoning explains WHY with cited numbers.
