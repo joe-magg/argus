@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { cached } from '@/lib/cache'
 import { generateStructured, hasLlmKey, LLM_MODEL } from '@/lib/llm'
-import { getSecBrief } from '@/lib/sec'
+import { getSecBrief, getInsiderBrief } from '@/lib/sec'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -27,6 +27,12 @@ const schema = z.object({
     .array(z.object({ label: z.string(), value: z.string(), source: z.enum(['live', 'sec']) }))
     .min(2)
     .max(8),
+  insider: z
+    .object({
+      signal: z.enum(['buy', 'sell', 'mixed', 'none']),
+      summary: z.string().min(3),
+    })
+    .optional(),
   grounding: z
     .object({
       filing: z.string(),
@@ -47,6 +53,7 @@ Rules:
 7. "grounding": optional { filing, figures[] } — ONLY when SEC filing data is present; cite 2-4 specific reported figures.
 8. Interpret, don't recite. Any metric you mention must support a conclusion. A metrics dump is a failure.
 9. If the SEC section reports filing data unavailable, omit "grounding" and rely only on live data.
+10. "insider": optional { signal: "buy" | "sell" | "mixed" | "none", summary } — interpret ONLY the Form 4 snippets provided (P = open-market buy, S = open-market sell, A = award, F = tax payment). Omit entirely when no insider section is present; if snippets are inconclusive, signal "mixed" or "none".
 10. Be concise. Every surplus token is latency for the end user.
 
 Respond with ONLY a single minified JSON object with EXACTLY these fields:
@@ -58,6 +65,7 @@ Respond with ONLY a single minified JSON object with EXACTLY these fields:
   - "catalysts": array of 2-3 SHORT plain strings
   - "keyMetrics": array of 3-4 objects, each { "label": string, "value": string, "source": "live" | "sec" }
   - "grounding": OPTIONAL object { "filing": string, "figures": [ { "figure": string, "value": string } ] }
+  - "insider": OPTIONAL object { "signal": "buy" | "sell" | "mixed" | "none", "summary": string } — one-line grounded take on insider Form 4 activity
 No markdown, no commentary, no code fences, nothing before or after the JSON.`
 
 function fmtUsd(v: number | null): string {
@@ -94,7 +102,10 @@ export async function POST(request: Request) {
   }
 
   // Grounding: direct from EDGAR. Degrades gracefully to null.
-  const sec = await getSecBrief(symbol).catch(() => null)
+  const [sec, insider] = await Promise.all([
+    getSecBrief(symbol).catch(() => null),
+    getInsiderBrief(symbol).catch(() => null),
+  ])
 
   const secSection = sec
     ? [
@@ -123,6 +134,14 @@ export async function POST(request: Request) {
       : ['(no recent headlines available)']),
     ``,
     secSection,
+    ``,
+    insider?.length
+      ? [
+          `Insider transactions (SEC Form 4 filings, raw snippets — P = open-market buy, S = open-market sell, A = award, F = tax payment):`,
+          ...insider.map((f) => `- Form 4 filed ${f.filed}: ${f.text}`),
+          'Interpret only figures and codes present in these snippets.',
+        ].join('\n')
+      : `No recent Form 4 insider filings found for ${symbol} — omit the insider field.`,
   ].join('\n')
 
   try {

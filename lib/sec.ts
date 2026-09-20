@@ -114,7 +114,11 @@ export type SecFiling = {
   url: string
 }
 
-export async function getRecentFilings(cik: string, limit = 3): Promise<SecFiling[]> {
+export async function getRecentFilings(
+  cik: string,
+  limit = 3,
+  forms: string[] = ['10-K', '10-Q'],
+): Promise<SecFiling[]> {
   const data = (await secFetch(
     `https://data.sec.gov/submissions/CIK${cik}.json`,
     FILINGS_TTL,
@@ -127,7 +131,7 @@ export async function getRecentFilings(cik: string, limit = 3): Promise<SecFilin
   const out: SecFiling[] = []
   for (let i = 0; i < count && out.length < limit; i++) {
     const form = rec.form[i]
-    if (form !== '10-K' && form !== '10-Q') continue
+    if (!forms.includes(form)) continue
     const accession = String(rec.accessionNumber[i]).replace(/-/g, '')
     const doc = rec.primaryDocument?.[i] ?? ''
     out.push({
@@ -177,6 +181,57 @@ export async function getMdaExcerpt(filing: SecFiling, maxChars = 5_000): Promis
     if (sentenceEnd > maxChars * 0.6) slice = slice.slice(0, sentenceEnd + 1)
     return slice || null
   })
+}
+
+// ── Insider trading (Form 4) ──────────────────────────────────────────────
+
+export type InsiderFiling = { filed: string; text: string }
+
+const INSIDER_TTL = 12 * 60 * 60_000
+const INSIDER_TEXT_LIMIT = 4_000
+
+async function secFetchText(url: string, ttlMs: number): Promise<string | null> {
+  return cached(`sec:text:${url}`, ttlMs, async () => {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': UA, 'Accept-Encoding': 'gzip, deflate' },
+    })
+    if (!res.ok) throw new Error(`EDGAR doc ${res.status}`)
+    return res.text()
+  })
+}
+
+function stripForm4(raw: string): string {
+  return raw
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&#8217;|&rsquo;/gi, "'")
+    .replace(/&#8220;|&ldquo;/gi, '"')
+    .replace(/&#8221;|&rdquo;/gi, '"')
+    .replace(/&#8211;|&ndash;/gi, '–')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, INSIDER_TEXT_LIMIT)
+}
+
+// Latest Form 4 filings as readable text snippets (the LLM interprets them;
+// we never parse the XML ourselves). Degrades gracefully to null.
+export async function getInsiderBrief(ticker: string, limit = 3): Promise<InsiderFiling[] | null> {
+  const cik = await getCik(ticker).catch(() => null)
+  if (!cik) return null
+
+  const filings = await getRecentFilings(cik, limit, ['4']).catch(() => [])
+  const briefs: InsiderFiling[] = []
+  for (const f of filings) {
+    const raw = await secFetchText(f.url, INSIDER_TTL).catch(() => null)
+    if (!raw) continue
+    briefs.push({ filed: f.filed, text: stripForm4(raw) })
+    // Context budget: the model needs only the latest 1-2 filings.
+    if (briefs.length >= 2) break
+  }
+  return briefs.length ? briefs : null
 }
 
 // ── One-call brief for the analysis pipeline ──────────────────────────────

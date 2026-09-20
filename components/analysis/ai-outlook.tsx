@@ -32,6 +32,17 @@ type Report = {
     filing: string
     figures: { figure: string; value: string }[]
   }
+  insider?: {
+    signal: 'buy' | 'sell' | 'mixed' | 'none'
+    summary: string
+  }
+}
+
+const INSIDER = {
+  buy: { label: 'Insider net buying', className: 'text-gain', bg: 'bg-gain/15' },
+  sell: { label: 'Insider net selling', className: 'text-loss', bg: 'bg-loss/15' },
+  mixed: { label: 'Mixed insider activity', className: 'text-muted-foreground', bg: 'bg-muted' },
+  none: { label: 'No notable insider activity', className: 'text-muted-foreground', bg: 'bg-muted' },
 }
 
 const VERDICT = {
@@ -282,6 +293,21 @@ export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+
+            {data.insider && (
+              <div className="flex items-start gap-3 rounded-lg border border-border bg-card/50 p-3">
+                <span
+                  className={cn(
+                    'shrink-0 rounded-md px-2 py-1 text-xs font-semibold',
+                    INSIDER[data.insider.signal].bg,
+                    INSIDER[data.insider.signal].className,
+                  )}
+                >
+                  {INSIDER[data.insider.signal].label}
+                </span>
+                <p className="text-sm leading-relaxed text-muted-foreground">{data.insider.summary}</p>
               </div>
             )}
 
