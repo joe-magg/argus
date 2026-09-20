@@ -55,7 +55,7 @@ export default function NewsPage() {
       <PageHeader
         icon={Newspaper}
         title="News"
-        description="Real headlines across markets, macro, and geopolitics — aggregated and deduplicated, with related tickers tagged. The analysis lives in the stock reports; here, stay current."
+        description="Stay up to date on news affecting the markets with real headlines across finance and geopolitics."
       />
 
       <div className="flex items-center gap-2">
