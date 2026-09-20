@@ -34,11 +34,27 @@ export const ARGUS_INSTRUCTIONS =
 export const LLM_CHAT_MODEL =
   process.env.NVIDIA_CHAT_MODEL ?? 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning'
 
-export const NIM_CHAT_OPTIONS = {
-  nvidia: {
-    chat_template_kwargs: { enable_thinking: false },
-  },
-} as const
+// Provider dialect: NIM takes chat_template_kwargs; OpenRouter takes
+// `reasoning` and a provider pin to NVIDIA (keeps the Nemotron-on-NVIDIA
+// story honest for the track). Both are OpenAI-compatible — the swap is
+// config only: NVIDIA_BASE_URL + API key + model id (with :free suffix).
+const IS_OPENROUTER = LLM_BASE_URL.includes('openrouter')
+const THINKING_ENABLED = process.env.NVIDIA_THINKING !== 'false'
+
+const NVIDIA_ROUTE_PIN = { only: ['nvidia'], allow_fallbacks: false } as const
+
+export const NIM_CHAT_OPTIONS = IS_OPENROUTER
+  ? {
+      nvidia: {
+        reasoning: { enabled: false },
+        provider: NVIDIA_ROUTE_PIN,
+      },
+    }
+  : {
+      nvidia: {
+        chat_template_kwargs: { enable_thinking: false },
+      },
+    }
 
 // Streaming chat model instance for the Ask-Argus box (/api/chat). Uses the
 // fast nano model with thinking disabled; analysis keeps the big Ultra model.
@@ -55,18 +71,20 @@ const MAX_OUTPUT_TOKENS =
     ? Number(process.env.NVIDIA_MAX_OUTPUT_TOKENS)
     : 4096
 
-// Ultra 550B is a reasoning model: thinking improves answer quality but
-// adds seconds. NOTE: NIM's vLLM V2 runner rejects an explicit
-// `reasoning_budget` (400 error), so we enable thinking without a budget and
-// the deployment default applies. Flip reasoning off for the fast path with
-// NVIDIA_THINKING=false.
-const NIM_THINKING = {
-  nvidia: {
-    chat_template_kwargs: {
-      enable_thinking: process.env.NVIDIA_THINKING !== 'false',
-    },
-  },
-}
+const NIM_THINKING = IS_OPENROUTER
+  ? {
+      nvidia: {
+        reasoning: { enabled: THINKING_ENABLED },
+        provider: NVIDIA_ROUTE_PIN,
+      },
+    }
+  : {
+      nvidia: {
+        chat_template_kwargs: {
+          enable_thinking: THINKING_ENABLED,
+        },
+      },
+    }
 
 // Quota discipline: the free tier counts per request, and the AI SDK would
 // otherwise retry retryable errors (default maxRetries: 2) — re-firing
