@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { z } from 'zod'
 import { cached } from '@/lib/cache'
 import { generateStructured, hasLlmKey, LLM_MODEL } from '@/lib/llm'
 import { getSecBrief, getInsiderBrief } from '@/lib/sec'
+import { verdictSchema } from '@/lib/schemas'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,14 +10,6 @@ export const maxDuration = 120
 
 // Repeated pair comparisons within 6h come from cache (demo-day hammering).
 const VERDICT_TTL = 6 * 60 * 60_000
-
-const schema = z.object({
-  pick: z.enum(['a', 'b', 'tie']),
-  rationale: z.string().min(10),
-  edgeA: z.array(z.string()).min(1).max(4),
-  edgeB: z.array(z.string()).min(1).max(4),
-  mainRisk: z.string().min(3),
-})
 
 const SYSTEM = `You are comparing two investment candidates for Argus, a finance dashboard. Pick the better one using ONLY the data provided.\n\nRules:\n1. Prefer SEC-reported figures over market estimates when they conflict.\n2. A tie is valid and often honest — pick it when the evidence is balanced.\n3. \"rationale\": 2-3 sentences citing at least two specific figures.\n4. \"edgeA\"/\"edgeB\": 2-3 short strings each — the concrete advantages of each side.\n5. \"mainRisk\": one line on the biggest risk to your pick.\n6. Interpret, don't recite. A metrics dump is a failure.\n\nRespond with ONLY a single minified JSON object with EXACTLY these fields:\n  - \"pick\": \"a\" | \"b\" | \"tie\"\n  - \"rationale\": string, 2-3 sentences, citing specific numbers\n  - \"edgeA\": array of 2-3 SHORT plain strings\n  - \"edgeB\": array of 2-3 SHORT plain strings\n  - \"mainRisk\": string, one line\nNo markdown, no commentary, no code fences.`
 
@@ -122,7 +114,7 @@ export async function POST(request: Request) {
 
   try {
     const output = await cached(key, VERDICT_TTL, () =>
-      generateStructured({ system: SYSTEM, prompt, schema, temperature: 0.3 }),
+      generateStructured({ system: SYSTEM, prompt, schema: verdictSchema, temperature: 0.3 }),
     )
     return NextResponse.json({ verdict: output, model: LLM_MODEL })
   } catch (error) {

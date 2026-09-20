@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { z } from 'zod'
 import { cached } from '@/lib/cache'
 import { generateStructured, hasLlmKey, LLM_MODEL } from '@/lib/llm'
 import { getSecBrief, getInsiderBrief } from '@/lib/sec'
+import { reportSchema } from '@/lib/schemas'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -11,35 +11,6 @@ export const maxDuration = 300
 
 // Repeat analyses within 6h are served from cache (demo-day hammering).
 const SENTIMENT_TTL = 6 * 60 * 60_000
-
-// PLAN §5 — the full analysis report contract (shared with the AI card).
-const schema = z.object({
-  story: z.string().min(10),
-  verdict: z.enum(['strong_buy', 'buy', 'hold', 'sell', 'strong_sell']),
-  conviction: z.number().min(0).max(100),
-  thesis: z
-    .array(z.object({ point: z.string(), reasoning: z.string() }))
-    .min(2)
-    .max(6),
-  risks: z.array(z.string()).min(1).max(6),
-  catalysts: z.array(z.string()).min(1).max(6),
-  keyMetrics: z
-    .array(z.object({ label: z.string(), value: z.string(), source: z.enum(['live', 'sec']) }))
-    .min(2)
-    .max(8),
-  insider: z
-    .object({
-      signal: z.enum(['buy', 'sell', 'mixed', 'none']),
-      summary: z.string().min(3),
-    })
-    .optional(),
-  grounding: z
-    .object({
-      filing: z.string(),
-      figures: z.array(z.object({ figure: z.string(), value: z.string() })).min(1).max(6),
-    })
-    .optional(),
-})
 
 const SYSTEM = `Write a stock analysis for Argus, a finance dashboard. Read the data below and produce the analysis JSON.
 
@@ -146,7 +117,7 @@ export async function POST(request: Request) {
 
   try {
     const output = await cached(`sentiment:${symbol}`, SENTIMENT_TTL, () =>
-      generateStructured({ system: SYSTEM, prompt, schema, temperature: 0.3 }),
+      generateStructured({ system: SYSTEM, prompt, schema: reportSchema, temperature: 0.3 }),
     )
     return NextResponse.json({ sentiment: output, model: LLM_MODEL })
   } catch (error) {

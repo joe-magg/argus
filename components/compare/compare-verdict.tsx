@@ -3,17 +3,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2, Sparkles, AlertTriangle, RefreshCw, Scale, ArrowRight } from 'lucide-react'
 import type { StockAnalysis } from '@/lib/analysis'
+import type { Verdict } from '@/lib/schemas'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-
-type Verdict = {
-  pick: 'a' | 'b' | 'tie'
-  rationale: string
-  edgeA: string[]
-  edgeB: string[]
-  mainRisk: string
-}
 
 const PICK = {
   a: { label: 'A is the better pick', className: 'text-gain', bg: 'bg-gain/15' },

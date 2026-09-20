@@ -15,29 +15,12 @@ import {
   BrainCircuit,
 } from 'lucide-react'
 import type { StockAnalysis } from '@/lib/analysis'
+import type { Report } from '@/lib/schemas'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-// PLAN §5 — the AI report contract (schema lives in app/api/analysis/sentiment).
-type Report = {
-  verdict: 'strong_buy' | 'buy' | 'hold' | 'sell' | 'strong_sell'
-  conviction: number
-  story: string
-  thesis: { point: string; reasoning: string }[]
-  risks: string[]
-  catalysts: string[]
-  keyMetrics: { label: string; value: string; source: 'live' | 'sec' }[]
-  grounding?: {
-    filing: string
-    figures: { figure: string; value: string }[]
-  }
-  insider?: {
-    signal: 'buy' | 'sell' | 'mixed' | 'none'
-    summary: string
-  }
-}
-
+const VERDICT = {
 const INSIDER = {
   buy: { label: 'Insider net buying', className: 'text-gain', bg: 'bg-gain/15' },
   sell: { label: 'Insider net selling', className: 'text-loss', bg: 'bg-loss/15' },
