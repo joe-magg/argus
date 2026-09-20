@@ -32,7 +32,7 @@ export function PriceChartCard({ symbol, range = '1y' }: { symbol: string; range
       <CardContent>
         {isLoading && <Skeleton className="h-60 rounded-xl" />}
         {error && <p className="text-sm text-muted-foreground">Could not load the price chart.</p>}
-        {data && <PriceChart data={data.points} id={`chart-${symbol}`} />}
+        {data && <PriceChart data={data.points} id={`chart-${symbol}`} height={180} />}
       </CardContent>
     </Card>
   )

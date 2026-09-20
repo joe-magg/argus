@@ -48,7 +48,6 @@ type OutlookError = { message: string }
 
 export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
   const [data, setData] = useState<Report | null>(null)
-  const [model, setModel] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<OutlookError | null>(null)
   const [stage, setStage] = useState(0)
@@ -99,7 +98,6 @@ export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
         }
         if (!signal.aborted) {
           setData(json.sentiment)
-          setModel(json.model ?? null)
         }
       } catch (e: any) {
         if (signal.aborted || e?.name === 'AbortError') return
@@ -130,12 +128,7 @@ export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Sparkles className="size-4 text-primary" />
-          Nemotron Analysis
-          {model && (
-            <span className="ml-auto font-mono text-xs font-normal text-muted-foreground">
-              {model}
-            </span>
-          )}
+          Argus Analysis
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -210,7 +203,7 @@ export function AiOutlook({ analysis }: { analysis: StockAnalysis }) {
             <div className="rounded-lg border border-border bg-card/50 p-4">
               <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <BrainCircuit className="size-3.5" />
-                Thesis — why
+                Thesis
               </p>
               <ul className="space-y-3">
                 {data.thesis.map((t, i) => (

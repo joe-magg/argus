@@ -157,10 +157,10 @@ function Report({ analysis: a }: { analysis: StockAnalysis }) {
     <div className="space-y-6">
       {/* Header */}
       <Card>
-        <CardContent className="flex flex-col gap-4 py-6 sm:flex-row sm:items-start sm:justify-between">
+        <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="truncate text-xl font-semibold">{a.name}</h2>
+              <h2 className="truncate text-lg font-semibold">{a.name}</h2>
               <span className="tabular rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
                 {a.symbol}
               </span>
@@ -188,7 +188,7 @@ function Report({ analysis: a }: { analysis: StockAnalysis }) {
             </div>
           </div>
           <div className="text-right">
-            <div className="tabular font-mono text-3xl font-semibold">
+            <div className="tabular font-mono text-2xl font-semibold">
               {formatPrice(a.price.current, a.currency)}
             </div>
             <div className="mt-1 flex items-center justify-end gap-2">
@@ -209,10 +209,7 @@ function Report({ analysis: a }: { analysis: StockAnalysis }) {
         </CardContent>
       </Card>
 
-      {/* Price history */}
-      <PriceChartCard symbol={a.symbol} />
-
-      {/* AI Outlook */}
+      {/* Argus Analysis — the hero, first thing after the header */}
       <AiOutlook analysis={a} />
 
       {/* Ask Argus — section-aware chat, scoped to this company */}
@@ -228,6 +225,15 @@ function Report({ analysis: a }: { analysis: StockAnalysis }) {
         placeholder="Ask Argus about this company…"
       />
 
+      {/* Price history */}
+      <PriceChartCard symbol={a.symbol} />
+
+      {/* Full market data — collapsed so the analysis stays king */}
+      <details className="group">
+        <summary className="cursor-pointer select-none text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          Full market data
+        </summary>
+        <div className="mt-4 space-y-6">
       {/* Analyst targets */}
       <PriceTargets analysis={a} />
 
@@ -293,6 +299,8 @@ function Report({ analysis: a }: { analysis: StockAnalysis }) {
           </CardContent>
         </Card>
       </div>
+        </div>
+      </details>
     </div>
   )
 }

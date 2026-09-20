@@ -36,7 +36,7 @@ export function PriceChart({ data, height = 240, showAxes = true, id = "pc" }: P
   const values = data.map((d) => d.close)
   const min = Math.min(...values)
   const max = Math.max(...values)
-  const pad = (max - min) * 0.08 || max * 0.02
+  const pad = (max - min) * 0.05 || max * 0.02
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -64,7 +64,9 @@ export function PriceChart({ data, height = 240, showAxes = true, id = "pc" }: P
             axisLine={false}
             tickLine={false}
             width={52}
-            tickFormatter={(v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+            tickFormatter={(v: number) =>
+              v.toLocaleString('en-US', { notation: 'standard', maximumSignificantDigits: 4 })
+            }
           />
         )}
         <Tooltip

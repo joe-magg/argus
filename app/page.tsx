@@ -29,12 +29,8 @@ export default function HomePage() {
     <div className="pb-24">
       <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-24">
         <div className="mx-auto max-w-2xl text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-primary" />
-            Financial intelligence, all-seeing
-          </div>
           <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
-            Every angle on the market, in one view
+            Get an analysis of any stock on the market
           </h1>
           <p className="mt-4 text-pretty text-lg text-muted-foreground">
             Argus aggregates and analyzes market data so you can compare companies, scan industries,
