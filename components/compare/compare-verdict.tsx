@@ -157,7 +157,7 @@ export function CompareVerdict({ left, right }: { left: StockAnalysis; right: St
                 <ul className="mt-2 space-y-1.5">
                   {data.edgeA.map((e, i) => (
                     <li key={i} className="flex gap-2 text-sm text-muted-foreground">
-                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-gain" />
+                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
                       {e}
                     </li>
                   ))}
@@ -170,7 +170,7 @@ export function CompareVerdict({ left, right }: { left: StockAnalysis; right: St
                 <ul className="mt-2 space-y-1.5">
                   {data.edgeB.map((e, i) => (
                     <li key={i} className="flex gap-2 text-sm text-muted-foreground">
-                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-loss" />
+                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
                       {e}
                     </li>
                   ))}
