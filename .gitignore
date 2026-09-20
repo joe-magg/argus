@@ -16,3 +16,4 @@ node_modules
 *.tsbuildinfo
 
 PLAN*.md
+CODEBASE_SURVEY.md
