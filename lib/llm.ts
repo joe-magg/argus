@@ -69,6 +69,36 @@ const NIM_THINKING = {
 // exhausted requests. We retry deliberately, once, in generateStructured.
 const NO_SDK_RETRIES = { maxRetries: 0 } as const
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+// The free tier's "Worker local total request limit" is transient shared-pool
+// saturation, not a per-key quota: community measurements show most failures
+// recover on immediate retry. So we retry ONLY exhaustion-class errors with
+// bounded backoff — validation failures still fail fast.
+export function isExhausted(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error)
+  const status = (error as { statusCode?: number })?.statusCode
+  return status === 429 || status === 503 || /ResourceExhausted|request limit|rate.?limit/i.test(msg)
+}
+
+export async function withQuotaRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+  let last: unknown
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      last = error
+      if (attempt < retries && isExhausted(error)) {
+        const base = 2000 * 2 ** attempt
+        await sleep(base + Math.random() * 1000)
+        continue
+      }
+      throw error
+    }
+  }
+  throw last
+}
+
 export type StructuredCall<T> = {
   system: string
   prompt: string
@@ -105,7 +135,6 @@ export async function generateStructured<T>({
   temperature = 0.3,
   maxOutputTokens = MAX_OUTPUT_TOKENS,
 }: StructuredCall<T>): Promise<T> {
-  // Plain-text attempt with optional validation feedback (the repair path).
   const attempt = async (retryHint?: string): Promise<T> => {
     const { text } = await generateText({
       model: nvidia(LLM_MODEL),
@@ -138,24 +167,30 @@ export async function generateStructured<T>({
     return result.data
   }
 
+  // Repair path: plain-text extraction with validation feedback. One bounded
+  // quota retry per stage — only fires on exhaustion-class errors.
+  const plainWithHint = async (hint: string) => withQuotaRetry(() => attempt(hint), 1)
+
   // Attempt 1: strict JSON via the API (`response_format: json_object`),
   // parsed + zod-validated by the SDK. At most ONE repair attempt follows —
   // free-tier quota counts per request, so three is too many.
   try {
-    const result = await generateText({
-      model: nvidia(LLM_MODEL),
-      system,
-      prompt,
-      temperature,
-      maxOutputTokens,
-      providerOptions: NIM_THINKING,
-      output: Output.object({ schema }),
-      ...NO_SDK_RETRIES,
-    })
-    if (result.output == null) {
-      throw new Error('LLM_JSON: model returned no object')
-    }
-    return result.output as T
+    return await withQuotaRetry(async () => {
+      const result = await generateText({
+        model: nvidia(LLM_MODEL),
+        system,
+        prompt,
+        temperature,
+        maxOutputTokens,
+        providerOptions: NIM_THINKING,
+        output: Output.object({ schema }),
+        ...NO_SDK_RETRIES,
+      })
+      if (result.output == null) {
+        throw new Error('LLM_JSON: model returned no object')
+      }
+      return result.output as T
+    }, 1)
   } catch (error) {
     if (
       !isFormatRejected(error) &&
@@ -172,6 +207,6 @@ export async function generateStructured<T>({
     const hint = detail
       ? `Your previous response failed validation: ${detail}. Return ONLY a single minified JSON object matching the schema exactly — fix exactly the listed fields; keep plain-string fields as plain strings, never objects. No markdown, no code fences.`
       : 'Return ONLY a single minified JSON object matching the schema exactly. No markdown, no code fences, no commentary.'
-    return attempt(hint)
+    return plainWithHint(hint)
   }
 }

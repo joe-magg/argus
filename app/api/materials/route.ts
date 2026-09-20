@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import { ARGUS_PERSONA, NIM_CHAT_OPTIONS, chatModel } from '@/lib/llm'
+import { ARGUS_PERSONA, NIM_CHAT_OPTIONS, chatModel, withQuotaRetry } from '@/lib/llm'
 import { getQuote, getChart, type RangeKey } from '@/lib/yahoo'
 
 export const runtime = 'nodejs'
@@ -33,23 +33,27 @@ export async function POST(req: Request) {
       fiftyTwoWeekLow: m.quote.fiftyTwoWeekLow,
     }))
 
-    const { text } = await generateText({
-      model: chatModel(),
-      providerOptions: NIM_CHAT_OPTIONS,
-      maxRetries: 0,
-      system:
-        `${ARGUS_PERSONA}\n\n` +
-        'Write a precious materials and commodities briefing in plain text. Use these prefixed lines:\n' +
-        "GOLD: one line on gold's current situation and drivers.\n" +
-        'SILVER: one line on silver.\n' +
-        'PLATINUM: one line on platinum.\n' +
-        'OIL: one line on crude oil.\n' +
-        'DIAMONDS: one line on the diamond market qualitatively (note it has no live exchange feed).\n' +
-        "MACRO: 2 bullet lines ('- ') on the macro forces (rates, dollar, demand) shaping these markets.",
-      prompt: 'Brief these commodities using ONLY these figures:\n\n' + JSON.stringify(snapshot, null, 2),
-    })
+    const result = await withQuotaRetry(
+      () =>
+        generateText({
+          model: chatModel(),
+          providerOptions: NIM_CHAT_OPTIONS,
+          maxRetries: 0,
+          system:
+            `${ARGUS_PERSONA}\n\n` +
+            'Write a precious materials and commodities briefing in plain text. Use these prefixed lines:\n' +
+            "GOLD: one line on gold's current situation and drivers.\n" +
+            'SILVER: one line on silver.\n' +
+            'PLATINUM: one line on platinum.\n' +
+            'OIL: one line on crude oil.\n' +
+            'DIAMONDS: one line on the diamond market qualitatively (note it has no live exchange feed).\n' +
+            "MACRO: 2 bullet lines ('- ') on the macro forces (rates, dollar, demand) shaping these markets.",
+          prompt: 'Brief these commodities using ONLY these figures:\n\n' + JSON.stringify(snapshot, null, 2),
+        }),
+      1,
+    )
 
-    return Response.json({ materials, briefing: text })
+    return Response.json({ materials, briefing: result.text })
   } catch (err) {
     return Response.json(
       { error: err instanceof Error ? err.message : 'Could not load commodities data.' },
