@@ -20,7 +20,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const VERDICT = {
 const INSIDER = {
   buy: { label: 'Insider net buying', className: 'text-gain', bg: 'bg-gain/15' },
   sell: { label: 'Insider net selling', className: 'text-loss', bg: 'bg-loss/15' },
