@@ -55,7 +55,7 @@ export default function NewsPage() {
       <PageHeader
         icon={Newspaper}
         title="News"
-        description="World events — politics, wars, disasters, and executive decisions — with Nemotron pinpointing exactly which markets and sectors each one moves."
+        description="Real headlines across markets, macro, and geopolitics — aggregated and deduplicated, with related tickers tagged. The analysis lives in the stock reports; here, stay current."
       />
 
       <div className="flex items-center gap-2">

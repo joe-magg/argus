@@ -82,11 +82,11 @@ export function IndustryClient() {
       <header className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight">Industry</h1>
         <p className="mt-1 text-muted-foreground">
-          Top companies across live Yahoo Finance market screens.
+          Top companies across live Yahoo Finance market screens. Click a stock to get an in-depth analysis.
         </p>
       </header>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-6 flex flex-nowrap gap-2 overflow-x-auto pb-1">
         {SCREENS.map((s) => (
           <button
             key={s.id}

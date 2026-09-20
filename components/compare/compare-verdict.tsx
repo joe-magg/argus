@@ -8,13 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const PICK = {
-  a: { label: 'A is the better pick', className: 'text-gain', bg: 'bg-gain/15' },
-  b: { label: 'B is the better pick', className: 'text-gain', bg: 'bg-gain/15' },
-  tie: { label: 'Too close to call', className: 'text-muted-foreground', bg: 'bg-muted' },
+const PICK_CLASS = {
+  a: { className: 'text-gain', bg: 'bg-gain/15' },
+  b: { className: 'text-gain', bg: 'bg-gain/15' },
+  tie: { className: 'text-muted-foreground', bg: 'bg-muted' },
 }
 
-const STAGES = ['Pulling SEC filings…', 'Comparing fundamentals…', 'Weighing the risks…', 'Writing the verdict…']
+const STAGES = ['Loading both companies…', 'Comparing fundamentals…', 'Weighing the risks…', 'Writing the verdict…']
 
 function metricsOf(a: StockAnalysis) {
   return {
@@ -40,7 +40,6 @@ function metricsOf(a: StockAnalysis) {
 
 export function CompareVerdict({ left, right }: { left: StockAnalysis; right: StockAnalysis }) {
   const [data, setData] = useState<Verdict | null>(null)
-  const [model, setModel] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [stage, setStage] = useState(0)
@@ -73,7 +72,6 @@ export function CompareVerdict({ left, right }: { left: StockAnalysis; right: St
         if (!res.ok) throw new Error(json.message ?? 'Could not run the comparison right now.')
         if (!signal.aborted) {
           setData(json.verdict)
-          setModel(json.model ?? null)
         }
       } catch (e: any) {
         if (signal.aborted || e?.name === 'AbortError') return
@@ -97,17 +95,20 @@ export function CompareVerdict({ left, right }: { left: StockAnalysis; right: St
     return () => clearInterval(id)
   }, [loading])
 
-  const pick = data ? PICK[data.pick] : null
+  const pickLabel =
+    data?.pick === 'a'
+      ? `${left.symbol} is the better pick`
+      : data?.pick === 'b'
+        ? `${right.symbol} is the better pick`
+        : 'Too close to call'
+  const pickClass = data ? PICK_CLASS[data.pick] : null
 
   return (
     <Card className="border-primary/30 bg-gradient-to-b from-primary/[0.04] to-transparent">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Sparkles className="size-4 text-primary" />
-          Nemotron Verdict
-          {model && (
-            <span className="ml-auto font-mono text-xs font-normal text-muted-foreground">{model}</span>
-          )}
+          Argus Verdict
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -138,12 +139,12 @@ export function CompareVerdict({ left, right }: { left: StockAnalysis; right: St
           </div>
         )}
 
-        {data && pick && (
+        {data && pickClass && (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center gap-3">
-              <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-semibold', pick.bg, pick.className)}>
+              <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-semibold', pickClass.bg, pickClass.className)}>
                 {data.pick === 'tie' ? <Scale className="size-4" /> : <ArrowRight className="size-4" />}
-                {pick.label}
+                {pickLabel}
               </span>
             </div>
 
